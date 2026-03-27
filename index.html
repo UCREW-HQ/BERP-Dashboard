@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>BERP Interactive Dashboard</title>
+    <title>DEQ Interactive Dashboard</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
@@ -20,24 +20,23 @@
         .dashboard-container { max-width: 1400px; margin: auto; }
         
         /* Updated Header with Logo Container */
-        .header { background: var(--utah-red); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header { background: var(--dark-grey); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .header-content { display: flex; align-items: center; justify-content: space-between; }
         
-        /* UPDATED: Container for the actual logo image */
         .logo-container { 
-            width: 180px; /* Fixed width to balance the flexbox */
+            width: 180px; 
             display: flex; 
             align-items: center; 
-            justify-content: flex-start; /* Aligns logo to left of container */
+            justify-content: flex-start; 
         }
         .logo-container img {
-            max-height: 60px; /* Constraints height to fit header nicely */
-            width: auto;      /* Maintains aspect ratio */
-            object-fit: contain; /* Ensures entire image fits */
+            max-height: 60px; 
+            width: auto;      
+            object-fit: contain; 
         }
 
         .header-text { text-align: center; flex-grow: 1; }
-        .header-spacer { width: 180px; } /* Balances the flexbox so text stays centered */
+        .header-spacer { width: 180px; } 
 
         /* Control Panel Styling */
         .controls { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; gap: 20px; align-items: center; flex-wrap: wrap; border-top: 4px solid var(--dark-grey); }
@@ -96,7 +95,7 @@
             <label>Fiscal Year:</label>
             <select id="yearFilter" onchange="updateDashboard()">
                 <option value="All">All Years</option>
-                </select>
+            </select>
         </div>
 
         <div class="control-group">
@@ -112,7 +111,7 @@
             <label>County:</label>
             <select id="countyFilter" onchange="updateDashboard()">
                 <option value="All">All Counties</option>
-                </select>
+            </select>
         </div>
 
         <div class="control-group">
@@ -148,7 +147,6 @@
     let globalData = [];
     const geoJsonUrl = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json"; 
 
-    // 1. Fetch Data and Read Last Modified Date
     fetch('site_data.json')
         .then(response => {
             let lastMod = response.headers.get('Last-Modified');
@@ -166,7 +164,6 @@
         })
         .catch(error => console.error("Error loading data:", error));
 
-    // 2. Populate Dropdowns
     function populateFilters() {
         let years = [...new Set(globalData.map(d => d.Year))].filter(y => y > 0).sort((a,b) => b-a);
         let yearSel = document.getElementById('yearFilter');
@@ -183,7 +180,6 @@
         });
     }
 
-    // 3. Main Update Function
     function updateDashboard() {
         let yearSel = document.getElementById('yearFilter').value;
         let statusSel = document.getElementById('statusFilter').value;
@@ -201,15 +197,20 @@
         renderMetrics(filtered);
     }
 
-    // 4. Render Metrics Box 
+    // --- RENDER METRICS ---
     function renderMetrics(data) {
         let uniqueReports = new Set(data.map(d => d['Report Number']));
         let assessmentCount = uniqueReports.size;
         let recommendationCount = data.length;
 
+        // Raw calculations
         let totalCO2 = d3.sum(data, d => d.Total_CO2_Tons);
         let totalSavings = d3.sum(data, d => d['Total Cost Savings']);
         let totalNOx = d3.sum(data, d => d.Total_NOx_lb);
+
+        // ROUNDING MATH: Divide by 100, round, multiply by 100
+        let roundedCO2 = Math.round(totalCO2 / 100) * 100;
+        let roundedNOx = Math.round(totalNOx / 100) * 100;
 
         document.getElementById('metricsBox').innerHTML = `
             <div class="metrics-grid">
@@ -230,18 +231,18 @@
 
             <div style="display:flex; gap:15px;">
                 <div class="metric-box" style="flex:1;">
-                    <div class="metric-val">${totalCO2.toFixed(1)}</div>
+                    <div class="metric-val">${d3.format(",.0f")(roundedCO2)}</div>
                     <div class="metric-lbl">Tons CO2</div>
                 </div>
                 <div class="metric-box" style="flex:1;">
-                    <div class="metric-val">${d3.format(",.0f")(totalNOx)}</div>
+                    <div class="metric-val">${d3.format(",.0f")(roundedNOx)}</div>
                     <div class="metric-lbl">lbs NOx</div>
                 </div>
             </div>
         `;
     }
 
-    // 5. Render Map 
+    // --- RENDER MAP ---
     function renderMap(data, metric) {
         document.getElementById('utahMap').innerHTML = '';
 
@@ -261,7 +262,14 @@
         let hoverText = locations.map(fips => {
             let match = data.find(d => d.FIPS === fips);
             let val = fipsMap.get(fips);
-            return match ? `${match.County}: ${d3.format(",.1f")(val)} ${label}` : fips;
+            
+            // Round Map hover values to the nearest 100 if it's CO2 or NOx
+            if (metric === 'Total_CO2_Tons' || metric === 'Total_NOx_lb') {
+                val = Math.round(val / 100) * 100;
+            }
+
+            // Using ",.0f" to ensure commas and no decimal places
+            return match ? `${match.County}: ${d3.format(",.0f")(val)} ${label}` : fips;
         });
 
         let allUtahFips = ["49001", "49003", "49005", "49007", "49009", "49011", "49013", "49015", "49017", "49019", "49021", "49023", "49025", "49027", "49029", "49031", "49033", "49035", "49037", "49039", "49041", "49043", "49045", "49047", "49049", "49051", "49053", "49055", "49057"];
