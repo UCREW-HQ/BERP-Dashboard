@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>DEQ Interactive Dashboard</title>
+    <title>BERP Interactive Dashboard</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     
+    <!-- Load Plotly.js for charts and maps -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Load D3.js for data handling -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     
     <style>
@@ -14,14 +16,13 @@
             --utah-black: #000000;
             --utah-grey: #f4f4f9;
             --dark-grey: #333333;
-            --header: #e4e4e4;
         }
 
         body { font-family: 'Segoe UI', sans-serif; background: var(--utah-grey); margin: 0; padding: 20px; color: var(--utah-black); }
         .dashboard-container { max-width: 1400px; margin: auto; }
         
-        /* Updated Header with Logo Container */
-        .header { background: var(--header); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 3px solid var(--dark-grey); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        /* Updated Header with Logo Container and Border */
+        .header { background: var(--utah-red); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--utah-black); }
         .header-content { display: flex; align-items: center; justify-content: space-between; }
         
         .logo-container { 
@@ -36,7 +37,7 @@
             object-fit: contain; 
         }
 
-        .header-text { text-align: center; flex-grow: 1; color:var(--utah-red) }
+        .header-text { text-align: center; flex-grow: 1; }
         .header-spacer { width: 180px; } 
 
         /* Control Panel Styling */
@@ -47,13 +48,35 @@
         
         /* Grid Layout */
         .grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); min-height: 400px; position: relative; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); min-height: 400px; position: relative; display: flex; flex-direction: column; }
         
+        /* Map Options Styling */
+        .map-options-list {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin: 10px 0 15px 0;
+            color: var(--dark-grey);
+            font-size: 0.95em;
+        }
+        .map-options-list li {
+            margin-bottom: 5px;
+        }
+        .map-options-list label {
+            cursor: pointer;
+            font-weight: normal;
+            text-transform: none; /* overrides global label uppercase */
+            letter-spacing: normal;
+        }
+        .map-options-list input[type="radio"] {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
         /* Metrics Styling */
         .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
         .metric-box { text-align: center; padding: 15px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee; }
         .metric-val { font-size: 1.8em; font-weight: bold; color: var(--utah-black); }
-        .metric-lbl { color: #666; font-size: 0.85em; letter-spacing: 0.5px; margin-top: 5px; }
+        .metric-lbl { color: #666; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; }
         
         /* Accent Colors */
         .border-red { border-top: 4px solid var(--utah-red); }
@@ -78,29 +101,31 @@
 
 <div class="dashboard-container">
     
+    <!-- HEADER WITH LOGO IMAGE -->
     <div class="header">
         <div class="header-content">
             <div class="logo-container">
                 <img src="U-CREW.png" alt="U-CREW Logo">
             </div>
             <div class="header-text">
-                <h1 style="margin:0;">Beehive Emissions Reduction Plan</h1>
-                <p style="margin:5px 0 0 0;">Building Efficiency Impact Tracking & Visualization</p>
+                <h1 style="margin:0;">BERP Interactive Dashboard</h1>
+                <p style="margin:5px 0 0 0;">Real-time Impact Tracking & Visualization</p>
             </div>
             <div class="header-spacer"></div>
         </div>
     </div>
 
+    <!-- CONTROL PANEL -->
     <div class="controls">
         <div class="control-group">
-            <label>Calendar Year:</label>
+            <label>Fiscal Year:</label>
             <select id="yearFilter" onchange="updateDashboard()">
                 <option value="All">All Years</option>
             </select>
         </div>
 
         <div class="control-group">
-            <label>Project Status:</label>
+            <label>Implementation Status:</label>
             <select id="statusFilter" onchange="updateDashboard()">
                 <option value="All">All Projects</option>
                 <option value="Identified">Identified</option>
@@ -114,21 +139,21 @@
                 <option value="All">All Counties</option>
             </select>
         </div>
-
-        <div class="control-group">
-            <label style="color: var(--utah-red);">Map Metric:</label>
-            <select id="metricFilter" onchange="updateDashboard()">
-                <option value="Total_CO2_Tons">CO₂ Reduced (Tons)</option>
-                <option value="Total_NOx_lb">NOₓ Reduced (lbs)</option>
-                <option value="Total Cost Savings">Cost Savings ($)</option>
-            </select>
-        </div>
     </div>
 
+    <!-- ROW 1: MAP & METRICS -->
     <div class="grid">
         <div class="card">
             <h3 id="mapTitle" style="margin-top:0; color: var(--utah-black);">Utah Impact Map</h3>
-            <div id="utahMap" style="height: 500px;">
+            
+            <!-- NEW: Bulleted Radio List for Map Controls -->
+            <ul class="map-options-list">
+                <li><label><input type="radio" name="mapMetric" value="Total_CO2_Tons" checked onchange="updateDashboard()"> CO₂ Reduced (Tons)</label></li>
+                <li><label><input type="radio" name="mapMetric" value="Total_NOx_lb" onchange="updateDashboard()"> NOₓ Reduced (lbs)</label></li>
+                <li><label><input type="radio" name="mapMetric" value="Total Cost Savings" onchange="updateDashboard()"> Cost Savings ($)</label></li>
+            </ul>
+
+            <div id="utahMap" style="flex-grow: 1; min-height: 450px; position: relative;">
                 <div class="loading-text">Loading Map...</div>
             </div>
         </div>
@@ -139,6 +164,7 @@
         </div>
     </div>
 
+    <!-- LAST UPDATED FOOTER -->
     <div class="footer">
         Data Last Updated: <span id="lastUpdatedDate">Checking...</span>
     </div>
@@ -185,7 +211,9 @@
         let yearSel = document.getElementById('yearFilter').value;
         let statusSel = document.getElementById('statusFilter').value;
         let countySel = document.getElementById('countyFilter').value;
-        let metricSel = document.getElementById('metricFilter').value; 
+        
+        // Grab the value of whichever radio button is currently checked
+        let metricSel = document.querySelector('input[name="mapMetric"]:checked').value; 
 
         let filtered = globalData.filter(d => {
             let yearMatch = (yearSel === "All") || (d.Year == yearSel);
@@ -233,11 +261,13 @@
             <div style="display:flex; gap:15px;">
                 <div class="metric-box" style="flex:1;">
                     <div class="metric-val">${d3.format(",.0f")(roundedCO2)}</div>
-                    <div class="metric-lbl">CO<sub>2</sub>, Tons</div>
+                    <!-- UPDATED WITH UNICODE SUBSCRIPT -->
+                    <div class="metric-lbl">Tons CO₂</div>
                 </div>
                 <div class="metric-box" style="flex:1;">
                     <div class="metric-val">${d3.format(",.0f")(roundedNOx)}</div>
-                    <div class="metric-lbl">NO<sub>x</sub>, lbs</div>
+                    <!-- UPDATED WITH UNICODE SUBSCRIPT -->
+                    <div class="metric-lbl">lbs NOₓ</div>
                 </div>
             </div>
         `;
@@ -254,7 +284,8 @@
         };
         let label = metricLabels[metric] || 'Value';
 
-        document.getElementById('mapTitle').innerText = `Utah Impact: ${label}`;
+        // We update the map title here (it stays above the radio buttons)
+        document.getElementById('mapTitle').innerText = `Utah Impact Map`; 
 
         let fipsMap = d3.rollup(data, v => d3.sum(v, d => d[metric]), d => d.FIPS);
         let locations = Array.from(fipsMap.keys());
@@ -264,12 +295,10 @@
             let match = data.find(d => d.FIPS === fips);
             let val = fipsMap.get(fips);
             
-            // Round Map hover values to the nearest 100 if it's CO2 or NOx
             if (metric === 'Total_CO2_Tons' || metric === 'Total_NOx_lb') {
                 val = Math.round(val / 100) * 100;
             }
 
-            // Using ",.0f" to ensure commas and no decimal places
             return match ? `${match.County}: ${d3.format(",.0f")(val)} ${label}` : fips;
         });
 
@@ -283,7 +312,10 @@
 
         let dataTrace = {
             type: 'choropleth', geojson: geoJsonUrl, locations: locations, z: zValues, text: hoverText,
-            colorscale: 'Reds', marker: { line: { width: 1, color: '#333' } }, 
+            
+            // NEW COLOR SCALE: Starts at Light Orange (#FFC285) and goes to Utah Red (#CC0000)
+            colorscale: [[0, '#FFC285'], [1, '#CC0000']], 
+            marker: { line: { width: 1, color: '#333' } }, 
             colorbar: { title: label },
             hovertemplate: '<b>%{text}</b><extra></extra>' 
         };
