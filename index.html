@@ -1,187 +1,400 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BERP Interactive Dashboard</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
-    
-    <!-- Load Plotly.js for charts and maps -->
+
+    <!-- Plotly.js for charts and maps -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <!-- Load D3.js for data handling -->
+    <!-- D3.js for data handling -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    
+
     <style>
-        /* UNIVERSITY OF UTAH BRANDING COLORS */
+        /* =====================================================
+           DESIGN TOKENS
+           ===================================================== */
         :root {
-            --utah-red: #CC0000;
-            --utah-black: #000000;
-            --utah-grey: #f4f4f9;
-            --dark-grey: #333333;
+            /* University of Utah branding */
+            --utah-red:   #CC0000;
+            --utah-black: #1a1a1a;
+            --dark-grey:  #333333;
+            --mid-grey:   #666666;
+            --light-grey: #f4f4f9;
+            --border:     #e6e6ea;
+            --white:      #ffffff;
+
+            /* Spacing scale (4px base) */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+
+            /* Shape & depth */
+            --radius:   10px;
+            --shadow:   0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+
+            /* Typography */
+            --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
 
-        body { font-family: 'Segoe UI', sans-serif; background: var(--utah-grey); margin: 0; padding: 20px; color: var(--utah-black); }
-        .dashboard-container { max-width: 1400px; margin: auto; }
-        
-        /* Updated Header with Logo Container and Border */
-        .header { background: var(--utah-red); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid var(--utah-black); }
-        .header-content { display: flex; align-items: center; justify-content: space-between; }
-        
-        .logo-container { 
-            width: 180px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: flex-start; 
+        /* =====================================================
+           BASE
+           ===================================================== */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: var(--font);
+            background: var(--light-grey);
+            color: var(--utah-black);
+            margin: 0;
+            padding: var(--space-lg);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1, h3, p { margin: 0; }
+
+        /* =====================================================
+           HEADER
+           ===================================================== */
+        .header {
+            background: var(--utah-red);
+            color: var(--white);
+            padding: var(--space-lg);
+            border-radius: var(--radius);
+            margin-bottom: var(--space-lg);
+            box-shadow: var(--shadow);
+        }
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-lg);
+        }
+        .header-text { text-align: center; flex-grow: 1; }
+        .header-text h1 {
+            font-size: 1.9em;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .header-text p {
+            margin-top: var(--space-xs);
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .logo-container,
+        .header-spacer { width: 180px; }
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
         }
         .logo-container img {
-            max-height: 60px; 
-            width: auto;      
-            object-fit: contain; 
+            max-height: 60px;
+            width: auto;
+            object-fit: contain;
         }
 
-        .header-text { text-align: center; flex-grow: 1; }
-        .header-spacer { width: 180px; } 
+        /* =====================================================
+           CONTROL PANEL
+           ===================================================== */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-lg);
+            align-items: flex-end;
+            background: var(--white);
+            padding: var(--space-lg);
+            border-radius: var(--radius);
+            border-top: 4px solid var(--dark-grey);
+            box-shadow: var(--shadow);
+            margin-bottom: var(--space-lg);
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            flex: 1;
+            min-width: 180px;
+        }
 
-        /* Control Panel Styling */
-        .controls { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; gap: 20px; align-items: center; flex-wrap: wrap; border-top: 4px solid var(--dark-grey); }
-        .control-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 180px; }
-        select { padding: 10px; font-size: 15px; border-radius: 4px; border: 1px solid #ccc; width: 100%; background: #fff; }
-        label { font-weight: bold; color: var(--dark-grey); font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        /* Grid Layout */
-        .grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); min-height: 400px; position: relative; display: flex; flex-direction: column; }
-        
-        /* Map Options Styling */
-        .map-options-list {
-            list-style-type: disc;
-            padding-left: 20px;
-            margin: 10px 0 15px 0;
-            color: var(--dark-grey);
+        label {
+            font-size: 0.78em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--mid-grey);
+        }
+
+        select {
+            width: 100%;
+            padding: 10px 12px;
             font-size: 0.95em;
-        }
-        .map-options-list li {
-            margin-bottom: 5px;
-        }
-        .map-options-list label {
+            font-family: inherit;
+            color: var(--utah-black);
+            background: var(--white);
+            border: 1px solid #ccc;
+            border-radius: 6px;
             cursor: pointer;
-            font-weight: normal;
-            text-transform: none; /* overrides global label uppercase */
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        select:hover { border-color: var(--mid-grey); }
+        select:focus {
+            outline: none;
+            border-color: var(--utah-red);
+            box-shadow: 0 0 0 3px rgba(204, 0, 0, 0.12);
+        }
+
+        /* =====================================================
+           GRID & CARDS
+           ===================================================== */
+        .grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: var(--space-lg);
+        }
+        .card {
+            display: flex;
+            flex-direction: column;
+            background: var(--white);
+            padding: var(--space-lg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            min-height: 400px;
+            position: relative;
+        }
+        .card h3 {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--utah-black);
+            margin-bottom: var(--space-md);
+        }
+
+        /* =====================================================
+           MAP METRIC OPTIONS
+           ===================================================== */
+        .map-options-list {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm) var(--space-lg);
+            margin: 0 0 var(--space-md) 0;
+            padding: 0;
+        }
+        .map-options-list li { margin: 0; }
+        .map-options-list label {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: 0.95em;
+            font-weight: 500;
+            text-transform: none;
             letter-spacing: normal;
+            color: var(--dark-grey);
+            cursor: pointer;
         }
         .map-options-list input[type="radio"] {
-            margin-right: 8px;
+            accent-color: var(--utah-red);
             cursor: pointer;
         }
 
-        /* Metrics Styling */
-        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .metric-box { text-align: center; padding: 15px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee; }
-        .metric-val { font-size: 1.8em; font-weight: bold; color: var(--utah-black); }
-        .metric-lbl { color: #666; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; }
-        
-        /* Accent Colors */
+        #utahMap {
+            flex-grow: 1;
+            min-height: 450px;
+            position: relative;
+        }
+
+        /* =====================================================
+           METRICS
+           ===================================================== */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-md);
+            margin-bottom: var(--space-md);
+        }
+        .metric-box {
+            text-align: center;
+            padding: var(--space-md);
+            background: #fafafa;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+        .metric-val {
+            font-size: 1.9em;
+            font-weight: 700;
+            line-height: 1.1;
+            color: var(--utah-black);
+        }
+        .metric-lbl {
+            margin-top: var(--space-sm);
+            font-size: 0.78em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--mid-grey);
+        }
+
+        .metric-hero {
+            padding: var(--space-xl) var(--space-lg);
+            margin-bottom: var(--space-md);
+        }
+        .metric-hero .metric-val { font-size: 2.6em; }
+
+        .metric-row {
+            display: flex;
+            gap: var(--space-md);
+        }
+        .metric-row .metric-box { flex: 1; }
+
+        /* Accent utilities */
         .border-red { border-top: 4px solid var(--utah-red); }
-        .text-red { color: var(--utah-red); }
+        .text-red   { color: var(--utah-red); }
 
-        /* Loading Text Styling */
-        .loading-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #bdc3c7; font-size: 1.2em; pointer-events: none; }
+        /* =====================================================
+           LOADING & FOOTER
+           ===================================================== */
+        .loading-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #bdc3c7;
+            font-size: 1.1em;
+            pointer-events: none;
+        }
+        .footer {
+            text-align: center;
+            padding: var(--space-lg);
+            margin-top: var(--space-lg);
+            color: var(--mid-grey);
+            font-size: 0.85em;
+        }
 
-        /* Footer */
-        .footer { text-align: center; padding: 20px; color: #7f8c8d; font-size: 0.9em; margin-top: 20px; }
-
-        /* --- MOBILE RESPONSIVENESS --- */
+        /* =====================================================
+           RESPONSIVE
+           ===================================================== */
         @media (max-width: 900px) {
+            body { padding: var(--space-md); }
             .grid { grid-template-columns: 1fr; }
-            .header-content { flex-direction: column; gap: 15px; text-align: center; }
+            .controls { flex-direction: column; align-items: stretch; }
+            .header-content { flex-direction: column; text-align: center; }
             .header-spacer { display: none; }
-            .controls { flex-direction: column; gap: 15px; }
         }
     </style>
 </head>
 <body>
 
 <div class="dashboard-container">
-    
-    <!-- HEADER WITH LOGO IMAGE -->
-    <div class="header">
+
+    <!-- HEADER -->
+    <header class="header">
         <div class="header-content">
             <div class="logo-container">
                 <img src="U-CREW.png" alt="U-CREW Logo">
             </div>
             <div class="header-text">
-                <h1 style="margin:0;">BERP Interactive Dashboard</h1>
-                <p style="margin:5px 0 0 0;">Real-time Impact Tracking & Visualization</p>
+                <h1>BERP Interactive Dashboard</h1>
+                <p>Real-time Impact Tracking &amp; Visualization</p>
             </div>
             <div class="header-spacer"></div>
         </div>
-    </div>
+    </header>
 
     <!-- CONTROL PANEL -->
-    <div class="controls">
+    <section class="controls">
         <div class="control-group">
-            <label>Fiscal Year:</label>
+            <label for="yearFilter">Fiscal Year</label>
             <select id="yearFilter" onchange="updateDashboard()">
                 <option value="All">All Years</option>
             </select>
         </div>
 
         <div class="control-group">
-            <label>Implementation Status:</label>
+            <label for="statusFilter">Implementation Status</label>
             <select id="statusFilter" onchange="updateDashboard()">
                 <option value="All">All Projects</option>
                 <option value="Identified">Identified</option>
                 <option value="Implemented">Implemented</option>
             </select>
         </div>
-        
+
         <div class="control-group">
-            <label>County:</label>
+            <label for="countyFilter">County</label>
             <select id="countyFilter" onchange="updateDashboard()">
                 <option value="All">All Counties</option>
             </select>
         </div>
-    </div>
+    </section>
 
     <!-- ROW 1: MAP & METRICS -->
     <div class="grid">
         <div class="card">
-            <h3 id="mapTitle" style="margin-top:0; color: var(--utah-black);">Utah Impact Map</h3>
-            
-            <!-- NEW: Bulleted Radio List for Map Controls -->
+            <h3 id="mapTitle">Utah Impact Map</h3>
+
             <ul class="map-options-list">
-                <li><label><input type="radio" name="mapMetric" value="Total_CO2_Tons" checked onchange="updateDashboard()"> CO₂ Reduced (Tons)</label></li>
-                <li><label><input type="radio" name="mapMetric" value="Total_NOx_lb" onchange="updateDashboard()"> NOₓ Reduced (lbs)</label></li>
-                <li><label><input type="radio" name="mapMetric" value="Total Cost Savings" onchange="updateDashboard()"> Cost Savings ($)</label></li>
+                <li>
+                    <label>
+                        <input type="radio" name="mapMetric" value="Total_CO2_Tons" checked onchange="updateDashboard()">
+                        CO₂ Reduced (Tons)
+                    </label>
+                </li>
+                <li>
+                    <label>
+                        <input type="radio" name="mapMetric" value="Total_NOx_lb" onchange="updateDashboard()">
+                        NOₓ Reduced (lbs)
+                    </label>
+                </li>
+                <li>
+                    <label>
+                        <input type="radio" name="mapMetric" value="Total Cost Savings" onchange="updateDashboard()">
+                        Cost Savings ($)
+                    </label>
+                </li>
             </ul>
 
-            <div id="utahMap" style="flex-grow: 1; min-height: 450px; position: relative;">
+            <div id="utahMap">
                 <div class="loading-text">Loading Map...</div>
             </div>
         </div>
-        
+
         <div class="card">
-            <h3 style="margin-top:0; color: var(--utah-black);">Program Metrics</h3>
-            <div id="metricsBox"><div class="loading-text">Loading Data...</div></div>
+            <h3>Program Metrics</h3>
+            <div id="metricsBox">
+                <div class="loading-text">Loading Data...</div>
+            </div>
         </div>
     </div>
 
-    <!-- LAST UPDATED FOOTER -->
-    <div class="footer">
+    <!-- FOOTER -->
+    <footer class="footer">
         Data Last Updated: <span id="lastUpdatedDate">Checking...</span>
-    </div>
+    </footer>
+
 </div>
 
 <script>
     let globalData = [];
-    const geoJsonUrl = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json"; 
+    const geoJsonUrl = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json";
 
+    // -----------------------------------------------------
+    // LOAD DATA
+    // -----------------------------------------------------
     fetch('site_data.json')
         .then(response => {
-            let lastMod = response.headers.get('Last-Modified');
-            if(lastMod) {
-                document.getElementById('lastUpdatedDate').innerText = new Date(lastMod).toLocaleString();
-            } else {
-                document.getElementById('lastUpdatedDate').innerText = new Date().toLocaleDateString();
-            }
+            const lastMod = response.headers.get('Last-Modified');
+            document.getElementById('lastUpdatedDate').innerText = lastMod
+                ? new Date(lastMod).toLocaleString()
+                : new Date().toLocaleDateString();
             return response.json();
         })
         .then(data => {
@@ -191,34 +404,46 @@
         })
         .catch(error => console.error("Error loading data:", error));
 
+    // -----------------------------------------------------
+    // POPULATE FILTERS
+    // -----------------------------------------------------
     function populateFilters() {
-        let years = [...new Set(globalData.map(d => d.Year))].filter(y => y > 0).sort((a,b) => b-a);
-        let yearSel = document.getElementById('yearFilter');
+        const years = [...new Set(globalData.map(d => d.Year))]
+            .filter(y => y > 0)
+            .sort((a, b) => b - a);
+        const yearSel = document.getElementById('yearFilter');
         years.forEach(y => {
-            let opt = document.createElement('option');
-            opt.value = y; opt.innerHTML = y; yearSel.appendChild(opt);
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            yearSel.appendChild(opt);
         });
 
-        let counties = [...new Set(globalData.map(d => d.County))].filter(Boolean).sort();
-        let countySel = document.getElementById('countyFilter');
+        const counties = [...new Set(globalData.map(d => d.County))]
+            .filter(Boolean)
+            .sort();
+        const countySel = document.getElementById('countyFilter');
         counties.forEach(c => {
-            let opt = document.createElement('option');
-            opt.value = c; opt.innerHTML = c; countySel.appendChild(opt);
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            countySel.appendChild(opt);
         });
     }
 
+    // -----------------------------------------------------
+    // FILTER & REFRESH
+    // -----------------------------------------------------
     function updateDashboard() {
-        let yearSel = document.getElementById('yearFilter').value;
-        let statusSel = document.getElementById('statusFilter').value;
-        let countySel = document.getElementById('countyFilter').value;
-        
-        // Grab the value of whichever radio button is currently checked
-        let metricSel = document.querySelector('input[name="mapMetric"]:checked').value; 
+        const yearSel   = document.getElementById('yearFilter').value;
+        const statusSel = document.getElementById('statusFilter').value;
+        const countySel = document.getElementById('countyFilter').value;
+        const metricSel = document.querySelector('input[name="mapMetric"]:checked').value;
 
-        let filtered = globalData.filter(d => {
-            let yearMatch = (yearSel === "All") || (d.Year == yearSel);
-            let statusMatch = (statusSel === "All") || (d['Implemented? Yes/No/In Progress'] === statusSel);
-            let countyMatch = (countySel === "All") || (d.County === countySel);
+        const filtered = globalData.filter(d => {
+            const yearMatch   = (yearSel === "All")   || (d.Year == yearSel);
+            const statusMatch = (statusSel === "All") || (d['Implemented? Yes/No/In Progress'] === statusSel);
+            const countyMatch = (countySel === "All") || (d.County === countySel);
             return yearMatch && statusMatch && countyMatch;
         });
 
@@ -226,20 +451,22 @@
         renderMetrics(filtered);
     }
 
-    // --- RENDER METRICS ---
+    // -----------------------------------------------------
+    // RENDER METRICS
+    // -----------------------------------------------------
     function renderMetrics(data) {
-        let uniqueReports = new Set(data.map(d => d['Report Number']));
-        let assessmentCount = uniqueReports.size;
-        let recommendationCount = data.length;
+        const assessmentCount     = new Set(data.map(d => d['Report Number'])).size;
+        const recommendationCount = data.length;
 
-        // Raw calculations
-        let totalCO2 = d3.sum(data, d => d.Total_CO2_Tons);
-        let totalSavings = d3.sum(data, d => d['Total Cost Savings']);
-        let totalNOx = d3.sum(data, d => d.Total_NOx_lb);
+        const totalCO2     = d3.sum(data, d => d.Total_CO2_Tons);
+        const totalNOx     = d3.sum(data, d => d.Total_NOx_lb);
+        const totalSavings = d3.sum(data, d => d['Total Cost Savings']);
 
-        // ROUNDING MATH: Divide by 100, round, multiply by 100
-        let roundedCO2 = Math.round(totalCO2 / 100) * 100;
-        let roundedNOx = Math.round(totalNOx / 100) * 100;
+        // Round to nearest 100
+        const roundedCO2 = Math.round(totalCO2 / 100) * 100;
+        const roundedNOx = Math.round(totalNOx / 100) * 100;
+
+        const fmt = d3.format(",.0f");
 
         document.getElementById('metricsBox').innerHTML = `
             <div class="metrics-grid">
@@ -253,87 +480,96 @@
                 </div>
             </div>
 
-            <div class="metric-box border-red" style="margin-bottom:15px; padding: 25px;">
-                <div class="metric-val text-red" style="font-size: 2.5em;">$${d3.format(",.0f")(totalSavings)}</div>
+            <div class="metric-box metric-hero border-red">
+                <div class="metric-val text-red">$${fmt(totalSavings)}</div>
                 <div class="metric-lbl">Annual Cost Savings</div>
             </div>
 
-            <div style="display:flex; gap:15px;">
-                <div class="metric-box" style="flex:1;">
-                    <div class="metric-val">${d3.format(",.0f")(roundedCO2)}</div>
-                    <!-- UPDATED WITH UNICODE SUBSCRIPT -->
+            <div class="metric-row">
+                <div class="metric-box">
+                    <div class="metric-val">${fmt(roundedCO2)}</div>
                     <div class="metric-lbl">Tons CO₂</div>
                 </div>
-                <div class="metric-box" style="flex:1;">
-                    <div class="metric-val">${d3.format(",.0f")(roundedNOx)}</div>
-                    <!-- UPDATED WITH UNICODE SUBSCRIPT -->
+                <div class="metric-box">
+                    <div class="metric-val">${fmt(roundedNOx)}</div>
                     <div class="metric-lbl">lbs NOₓ</div>
                 </div>
             </div>
         `;
     }
 
-    // --- RENDER MAP ---
+    // -----------------------------------------------------
+    // RENDER MAP
+    // -----------------------------------------------------
     function renderMap(data, metric) {
         document.getElementById('utahMap').innerHTML = '';
+        document.getElementById('mapTitle').innerText = 'Utah Impact Map';
 
-        let metricLabels = {
-            'Total_CO2_Tons': 'Tons CO₂',
-            'Total_NOx_lb': 'lbs NOₓ',
+        const metricLabels = {
+            'Total_CO2_Tons':     'Tons CO₂',
+            'Total_NOx_lb':       'lbs NOₓ',
             'Total Cost Savings': 'Savings ($)'
         };
-        let label = metricLabels[metric] || 'Value';
+        const label = metricLabels[metric] || 'Value';
 
-        // We update the map title here (it stays above the radio buttons)
-        document.getElementById('mapTitle').innerText = `Utah Impact Map`; 
+        const fipsMap   = d3.rollup(data, v => d3.sum(v, d => d[metric]), d => d.FIPS);
+        const locations = Array.from(fipsMap.keys());
+        const zValues   = Array.from(fipsMap.values());
 
-        let fipsMap = d3.rollup(data, v => d3.sum(v, d => d[metric]), d => d.FIPS);
-        let locations = Array.from(fipsMap.keys());
-        let zValues = Array.from(fipsMap.values());
-        
-        let hoverText = locations.map(fips => {
-            let match = data.find(d => d.FIPS === fips);
+        const hoverText = locations.map(fips => {
+            const match = data.find(d => d.FIPS === fips);
             let val = fipsMap.get(fips);
-            
             if (metric === 'Total_CO2_Tons' || metric === 'Total_NOx_lb') {
                 val = Math.round(val / 100) * 100;
             }
-
             return match ? `${match.County}: ${d3.format(",.0f")(val)} ${label}` : fips;
         });
 
-        let allUtahFips = ["49001", "49003", "49005", "49007", "49009", "49011", "49013", "49015", "49017", "49019", "49021", "49023", "49025", "49027", "49029", "49031", "49033", "49035", "49037", "49039", "49041", "49043", "49045", "49047", "49049", "49051", "49053", "49055", "49057"];
-        
-        let backgroundTrace = {
-            type: 'choropleth', geojson: geoJsonUrl, locations: allUtahFips, 
-            z: Array(allUtahFips.length).fill(0), colorscale: [['0.0', '#e0e0e0'], ['1.0', '#e0e0e0']], 
-            showscale: false, marker: { line: { width: 0.5, color: '#ffffff' } }, hoverinfo: 'skip'
+        const allUtahFips = [
+            "49001", "49003", "49005", "49007", "49009", "49011", "49013", "49015",
+            "49017", "49019", "49021", "49023", "49025", "49027", "49029", "49031",
+            "49033", "49035", "49037", "49039", "49041", "49043", "49045", "49047",
+            "49049", "49051", "49053", "49055", "49057"
+        ];
+
+        const backgroundTrace = {
+            type: 'choropleth',
+            geojson: geoJsonUrl,
+            locations: allUtahFips,
+            z: Array(allUtahFips.length).fill(0),
+            colorscale: [['0.0', '#e0e0e0'], ['1.0', '#e0e0e0']],
+            showscale: false,
+            marker: { line: { width: 0.5, color: '#ffffff' } },
+            hoverinfo: 'skip'
         };
 
-        let dataTrace = {
-            type: 'choropleth', geojson: geoJsonUrl, locations: locations, z: zValues, text: hoverText,
-            
-            // NEW COLOR SCALE: Starts at Light Orange (#FFC285) and goes to Utah Red (#CC0000)
-            colorscale: [[0, '#FFC285'], [1, '#CC0000']], 
-            marker: { line: { width: 1, color: '#333' } }, 
+        const dataTrace = {
+            type: 'choropleth',
+            geojson: geoJsonUrl,
+            locations: locations,
+            z: zValues,
+            text: hoverText,
+            colorscale: [[0, '#FFC285'], [1, '#CC0000']],
+            marker: { line: { width: 1, color: '#333' } },
             colorbar: { title: label },
-            hovertemplate: '<b>%{text}</b><extra></extra>' 
+            hovertemplate: '<b>%{text}</b><extra></extra>'
         };
 
-        let layout = {
-            margin: {l:0, r:0, t:0, b:0}, 
+        const layout = {
+            margin: { l: 0, r: 0, t: 0, b: 0 },
             geo: {
                 projection: { type: 'mercator' },
                 showlakes: false,
-                showframe: false, showcoastlines: false,
-                center: { lon: -111.5, lat: 39.4 }, 
-                lonaxis: { range: [-114.5, -108.5] }, 
+                showframe: false,
+                showcoastlines: false,
+                center:  { lon: -111.5, lat: 39.4 },
+                lonaxis: { range: [-114.5, -108.5] },
                 lataxis: { range: [36.5, 42.5] }
             },
             dragmode: false
         };
 
-        Plotly.newPlot('utahMap', [backgroundTrace, dataTrace], layout, {responsive: true});
+        Plotly.newPlot('utahMap', [backgroundTrace, dataTrace], layout, { responsive: true });
     }
 </script>
 
